@@ -1,5 +1,6 @@
 const express = require("express");
 const oauth2Client = require("../config/googleConfig");
+const { google } = require("googleapis"); // Added
 const router = express.Router();
 
 // Debug endpoint to check configuration
@@ -27,9 +28,8 @@ router.get("/google", (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: scopes,
-    prompt: "consent",  
+    prompt: "consent",
     include_granted_scopes: true
-    // Remove explicit redirect_uri here - let it use the one from config
   });
   
   console.log("=== AUTH URL GENERATION ===");
@@ -63,14 +63,20 @@ router.get("/callback", async (req, res) => {
   try {
     console.log("=== ATTEMPTING TOKEN EXCHANGE ===");
     
-    // Don't pass redirect_uri explicitly - let the client use its configured one
-    // const { tokens } = await oauth2Client.getToken(code);
-    const { tokens } = await oauth2Client.getToken(code);
+    const { google } = require("googleapis"); // Added
+    const localOAuth2Client = new google.auth.OAuth2( // Added
+      process.env.CLIENT_ID,
+      process.env.CLIENT_SECRET,
+      process.env.REDIRECT_URI
+    );
+
+    // Pass only the code to getToken for the local client
+    const { tokens } = await localOAuth2Client.getToken(code); // Reverted
     
     console.log("=== TOKEN EXCHANGE SUCCESS ===");
     console.log("Received tokens:", Object.keys(tokens));
     
-    oauth2Client.setCredentials(tokens);
+    localOAuth2Client.setCredentials(tokens); // Modified to use localOAuth2Client
     
     res.send(`
       <html>

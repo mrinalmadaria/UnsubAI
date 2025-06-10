@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 
 function App() {
   const [accessToken, setAccessToken] = useState("");
-  const [senders, setSenders] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [spamEmails, setSpamEmails] = useState([]);
+  const [otherEmails, setOtherEmails] = useState([]); // Optional, but good to have
+  const [analysisSummary, setAnalysisSummary] = useState(null); // To store { totalAnalyzed, spamCount }
+  const [error, setError] = useState(''); // For displaying errors from analysis
 
   // Listen for messages from the OAuth popup window
   useEffect(() => {
@@ -35,19 +37,28 @@ function App() {
   // Analyze inbox using the access token
   const handleAnalyze = async () => {
     setLoading(true);
-    setSenders([]);
-    setSuggestions([]);
+    setSpamEmails([]); // Clear previous results
+    setOtherEmails([]);
+    setAnalysisSummary(null);
+    setError(''); // Clear previous errors
     try {
-      const res = await fetch("/gmail/analyze", {
+      const res = await fetch("/gmail/analyze", { // Ensure this path is correct (e.g. /api/gmail/analyze if you have a base API path)
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ access_token: accessToken }),
       });
       const data = await res.json();
-      setSenders(data.senders || []);
-      setSuggestions(data.suggestions || []);
+      if (!res.ok) {
+        // Handle HTTP errors (e.g., 401, 500) from the backend
+        throw new Error(data.error || `Error ${res.status}`);
+      }
+      setSpamEmails(data.spamMessages || []);
+      setOtherEmails(data.otherMessages || []);
+      setAnalysisSummary(data.summary || null);
     } catch (err) {
-      alert("Error analyzing senders: ", err);
+      console.error("Error analyzing inbox:", err);
+      setError(err.message || "Failed to analyze inbox.");
+      // alert("Error analyzing inbox: " + err.message); // Or use a more integrated error display
     }
     setLoading(false);
   };
@@ -71,25 +82,59 @@ function App() {
           {loading ? "Analyzing..." : "Analyze Inbox"}
         </button>
       </div>
-      {senders.length > 0 && (
-        <div>
-          <h2>Senders</h2>
-          <ul>
-            {senders.map(sender => (
-              <li
-                key={sender}
-                style={{
-                  color: suggestions.includes(sender) ? "red" : "black",
-                  fontWeight: suggestions.includes(sender) ? "bold" : "normal",
-                }}
-              >
-                {sender}
-                {suggestions.includes(sender) && " (AI suggests unsubscribing)"}
+      {/* Display Error Messages */}
+      {error && (
+        <div style={{ color: 'red', marginTop: '1rem', padding: '0.5rem', border: '1px solid red' }}>
+          <p><strong>Error:</strong> {error}</p>
+        </div>
+      )}
+
+      {/* Display Analysis Summary */}
+      {analysisSummary && !loading && (
+        <div style={{ marginTop: '1rem', padding: '0.5rem', backgroundColor: '#f0f0f0' }}>
+          <h3>Analysis Summary</h3>
+          <p>Total emails analyzed: {analysisSummary.totalAnalyzed}</p>
+          <p>Spam emails found: {analysisSummary.spamCount}</p>
+        </div>
+      )}
+
+      {/* Display Spam Emails */}
+      {spamEmails.length > 0 && !loading && (
+        <div style={{ marginTop: '1rem' }}>
+          <h2>Spam Emails</h2>
+          <ul style={{ listStyleType: 'none', padding: 0 }}>
+            {spamEmails.map((email) => (
+              <li key={email.messageId} style={{ border: '1px solid #ccc', borderRadius: '4px', marginBottom: '1rem', padding: '1rem' }}>
+                <p><strong>From:</strong> {email.from}</p>
+                <p><strong>Subject:</strong> {email.subject}</p>
+                <p><em><small>Snippet: {email.snippet}</small></em></p>
+                <div style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: '#fff0f0', border: '1px solid #ffcccc' }}>
+                  <p><strong>AI Analysis:</strong> {email.aiAnalysis.reason}</p>
+                  {email.aiAnalysis.hasUnsubscribeLink && email.aiAnalysis.identifiedLink && (
+                    <p>
+                      <strong>Unsubscribe Link:</strong>{' '}
+                      <a href={email.aiAnalysis.identifiedLink} target="_blank" rel="noopener noreferrer">
+                        {email.aiAnalysis.identifiedLink}
+                      </a>
+                    </p>
+                  )}
+                  {!email.aiAnalysis.hasUnsubscribeLink && email.aiAnalysis.isSpam && (
+                     <p><em>AI did not identify a direct unsubscribe link in the snippet.</em></p>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      {/* Optional: Display if no spam emails were found but analysis was done */}
+      {!loading && analysisSummary && spamEmails.length === 0 && error === '' && (
+        <div style={{ marginTop: '1rem' }}>
+          <p>No spam emails identified in the latest analysis.</p>
+        </div>
+      )}
+
     </div>
   );
 }
