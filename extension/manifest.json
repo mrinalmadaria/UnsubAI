@@ -1,1 +1,9 @@
-{ "manifest_version": 3, "name": "UnsubAI", "version": "1.0", "action": { "default_popup": "popup.html" } }
+{
+  "manifest_version": 3,
+  "name": "UnsubAI",
+  "version": "1.0",
+  "description": "A Chrome extension to complement the UnsubAI web application for managing email subscriptions.",
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
