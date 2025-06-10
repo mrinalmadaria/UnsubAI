@@ -7,6 +7,7 @@ function App() {
   const [otherEmails, setOtherEmails] = useState([]); // Optional, but good to have
   const [analysisSummary, setAnalysisSummary] = useState(null); // To store { totalAnalyzed, spamCount }
   const [error, setError] = useState(''); // For displaying errors from analysis
+  const [initialAnalysisStarted, setInitialAnalysisStarted] = useState(false);
 
   // Listen for messages from the OAuth popup window
   useEffect(() => {
@@ -14,16 +15,22 @@ function App() {
     console.log("Received message:", event.data, "from:", event.origin);
     
     // Accept messages from your backend
-    if (event.origin === "http://localhost:5000") {
+    if (event.origin === "http://localhost:5000") { // Your backend origin
       if (event.data && event.data.access_token) {
-        console.log("Setting access token:", event.data.access_token);
+        console.log("Setting access token from OAuth popup:", event.data.access_token);
         setAccessToken(event.data.access_token);
+        setInitialAnalysisStarted(false); // Reset for new token
+        // Clear previous results when a new user logs in
+        setSpamEmails([]);
+        setOtherEmails([]);
+        setAnalysisSummary(null);
+        setError('');
       }
     }
   }
   window.addEventListener("message", handleMessage);
   return () => window.removeEventListener("message", handleMessage);
-}, []);
+}, []); // Empty dependency array is correct here for window event listener
 
   // Open popup for Google OAuth
   const handleLogin = () => {
@@ -63,25 +70,55 @@ function App() {
     setLoading(false);
   };
 
+  const handleSignOut = () => {
+    console.log("Signing out...");
+    setAccessToken("");
+    setSpamEmails([]);
+    setOtherEmails([]);
+    setAnalysisSummary(null);
+    setError("");
+    setInitialAnalysisStarted(false); // Reset this flag as well
+    // If you were persisting the token in localStorage, you'd clear it here too:
+    // localStorage.removeItem("accessToken");
+  };
+
+  // useEffect for automatic analysis on new accessToken
+  useEffect(() => {
+    // Only run if accessToken is present, not loading, and initial analysis hasn't started for this token
+    if (accessToken && !loading && !initialAnalysisStarted) {
+      console.log("New accessToken detected, triggering initial analysis.");
+      setInitialAnalysisStarted(true); // Mark as started to prevent re-triggering
+      handleAnalyze();
+    }
+  }, [accessToken, loading, initialAnalysisStarted]); // Add handleAnalyze to dependency array if it's not stable
+
   return (
     <div style={{ maxWidth: 600, margin: "2rem auto", fontFamily: "sans-serif" }}>
       <h1>UnsubAI</h1>
-      <button onClick={handleLogin} style={{ marginBottom: 16 }}>
-        Sign in with Google
-      </button>
-      <div style={{ margin: "1rem 0" }}>
-        <input
-          type="text"
-          placeholder="Access token will appear here"
-          value={accessToken}
-          onChange={e => setAccessToken(e.target.value)}
-          style={{ width: "100%", marginBottom: 8 }}
-          readOnly
-        />
-        <button onClick={handleAnalyze} disabled={!accessToken || loading}>
-          {loading ? "Analyzing..." : "Analyze Inbox"}
+      {!accessToken ? (
+        <button onClick={handleLogin} style={{ marginBottom: 16, padding: '10px 15px', fontSize: '16px' }}>
+          Sign in with Google
         </button>
-      </div>
+      ) : (
+        <div style={{ margin: "1rem 0" }}>
+          <p style={{ fontSize: '0.9rem', color: '#555' }}>
+            Signed in. Access token (first 20 chars): {accessToken.substring(0,20)}...
+          </p>
+          <button
+            onClick={handleAnalyze}
+            disabled={loading}
+            style={{ padding: '10px 15px', marginRight: '10px' }}
+          >
+            {loading && !analysisSummary ? "Analyzing..." : (analysisSummary ? "Re-Analyze Inbox" : "Analyze Inbox")}
+          </button>
+          <button
+            onClick={handleSignOut}
+            style={{ padding: '10px 15px', backgroundColor: '#f44336', color: 'white', border: 'none' }}
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
       {/* Display Error Messages */}
       {error && (
         <div style={{ color: 'red', marginTop: '1rem', padding: '0.5rem', border: '1px solid red' }}>
