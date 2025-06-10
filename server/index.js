@@ -1,5 +1,5 @@
 // Environment variable check
-const requiredEnvVars = ['CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI', 'OPENAI_API_KEY'];
+const requiredEnvVars = ['CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI', 'GOOGLE_PROJECT_ID', 'GOOGLE_REGION', 'GOOGLE_APPLICATION_CREDENTIALS'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
