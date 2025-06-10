@@ -1,18 +1,14 @@
 const express = require("express");
-const { listSenders } = require("../services/gmailService");
 const router = express.Router();
+const gmailController = require('../controllers/gmailController');
 
-router.post("/fetch", async (req, res, next) => {
-  const { access_token } = req.body;
-  if (!access_token) {
-    return res.status(400).json({ error: "Missing access_token in request body" });
-  }
-  try {
-    const senders = await listSenders(access_token);
-    res.json({ senders });
-  } catch (err) {
-    next(err); // Let the global error handler deal with it
-  }
-});
+// POST /gmail/analyze - Analyzes inbox for spam
+// The client calls "/gmail/analyze", so this route definition assumes
+// this router file is mounted at the root or a path that makes this valid.
+// For example, if in server/index.js it's app.use('/gmail', gmailRoutes);
+router.post("/analyze", gmailController.analyzeInboxForSpam);
+
+// Future: Add a route for unsubscribing if that functionality is built out.
+// Example: router.post("/unsubscribe", gmailController.handleUnsubscribe);
 
 module.exports = router;
