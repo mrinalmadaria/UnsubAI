@@ -65,10 +65,7 @@ router.get("/callback", async (req, res) => {
     
     // Don't pass redirect_uri explicitly - let the client use its configured one
     // const { tokens } = await oauth2Client.getToken(code);
-    const { tokens } = await oauth2Client.getToken({
-      code,
-      redirect_uri: process.env.REDIRECT_URI
-    });
+    const { tokens } = await oauth2Client.getToken(code);
     
     console.log("=== TOKEN EXCHANGE SUCCESS ===");
     console.log("Received tokens:", Object.keys(tokens));
