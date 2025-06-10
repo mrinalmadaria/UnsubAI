@@ -1,2 +1,2 @@
 # UnsubAI
-Instructions to run MERN app + Chrome extension
+MERN app + Chrome extension
